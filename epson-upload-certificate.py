@@ -103,10 +103,10 @@ def main():
     ########################################################################
     # step 3, upload key and certs
     data['format'] = 'pem_der'
-    del data['cert0']
-    del data['cert1']
-    del data['cert2']
-    del data['key']
+    data.pop('cert0', None)
+    data.pop('cert1', None)
+    data.pop('cert2', None)
+    data.pop('key', None)
 
     upload_url = urllib.parse.urljoin(args.url, 'PRESENTATIONEX/CERT/IMPORT_CHAIN')
 
