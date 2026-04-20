@@ -42,6 +42,14 @@ def main():
         print('Error: EPSON_CERT_UPLOAD_PASSWORD environment variable not set', file=sys.stderr)
         sys.exit(1)
 
+    if not os.path.isfile(args.cert):
+        print(f'Error: Certificate file not found: {args.cert}', file=sys.stderr)
+        sys.exit(1)
+
+    if not os.path.isfile(args.key):
+        print(f'Error: Key file not found: {args.key}', file=sys.stderr)
+        sys.exit(1)
+
     # Ensure URL ends with /
     url = args.url if args.url.endswith('/') else args.url + '/'
 
