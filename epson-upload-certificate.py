@@ -71,6 +71,7 @@ def main():
     data = dict([(f.attrib['name'], f.attrib['value']) for f in tree.findall('.//input')])
     assert 'INPUTT_SETUPTOKEN' in data
 
+    ########################################################################
     # step 3, upload key and certs
     data['format'] = 'pem_der'
     del data['cert0']
@@ -105,11 +106,11 @@ def main():
         files[f'cert{certno}'] = io.BytesIO(certs[certno].encode('utf-8'))
 
     ########################################################################
-    # step 3, submit the new cert
+    # step 4, submit the new cert
     r = requests.post(upload_url, cookies=jar, files=files, data=data)
 
     ########################################################################
-    # step 4, verify the printer accepted the cert and is shutting down
+    # step 5, verify the printer accepted the cert and is shutting down
     if not 'Shutting down' in r.text:
         print(r.text)
     assert 'Shutting down' in r.text
