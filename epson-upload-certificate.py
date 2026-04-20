@@ -60,7 +60,11 @@ def main():
             'INPUTT_DUMMY': '',
         },
     )
-    assert r.status_code == 200
+
+    if r.status_code != 200:
+        print(f'Error: Authentication failed with status code {r.status_code}', file=sys.stderr)
+        sys.exit(1)
+
     jar = r.cookies
 
     ########################################################################
@@ -69,7 +73,10 @@ def main():
     r = requests.get(form_url, cookies=jar)
     tree = html5lib.parse(r.text, namespaceHTMLElements=False)
     data = dict([(f.attrib['name'], f.attrib['value']) for f in tree.findall('.//input')])
-    assert 'INPUTT_SETUPTOKEN' in data
+
+    if 'INPUTT_SETUPTOKEN' not in data:
+        print('Error: Setup token not found in form', file=sys.stderr)
+        sys.exit(1)
 
     ########################################################################
     # step 3, upload key and certs
@@ -97,6 +104,10 @@ def main():
         if 'END CERTIFICATE' in line:
             certno = certno + 1
 
+    if certno >= 3:
+        print(f'Error: Too many certificates found ({certno + 1}), maximum is 3', file=sys.stderr)
+        sys.exit(1)
+
     with open(args.key, 'rb') as key_file:
         key_content = key_file.read()
 
@@ -105,7 +116,6 @@ def main():
     }
 
     for certno in certs:
-        assert certno < 3
         files[f'cert{certno}'] = io.BytesIO(certs[certno].encode('utf-8'))
 
     ########################################################################
@@ -114,9 +124,10 @@ def main():
 
     ########################################################################
     # step 5, verify the printer accepted the cert and is shutting down
-    if not 'Shutting down' in r.text:
-        print(r.text)
-    assert 'Shutting down' in r.text
+    if 'Shutting down' not in r.text:
+        print('Error: Unexpected response from printer:', file=sys.stderr)
+        print(r.text, file=sys.stderr)
+        sys.exit(1)
 
     print('Epson certificate successfully uploaded to printer.')
 
