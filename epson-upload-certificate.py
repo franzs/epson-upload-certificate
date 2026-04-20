@@ -1,24 +1,60 @@
 #!/usr/bin/env python3
 
-import requests, html5lib, io
+import argparse
+import io
+import os
+import sys
+import requests
+import html5lib
 
-URL = 'https://myepson.example.com/'
-USERNAME = 'majid'
-PASSWORD = 'your-admin-UI-password-here'
-KEYFILE = '/home/majid/web/acme-tiny/epson.key'
-CERTFILE = '/home/majid/web/acme-tiny/epson.crt'
+
+# Parse command line arguments
+parser = argparse.ArgumentParser(
+    description='Upload SSL/TLS certificate to Epson printer'
+)
+parser.add_argument(
+    '--url',
+    required=True,
+    help='Base URL of the Epson printer (e.g., https://myepson.example.com/)'
+)
+parser.add_argument(
+    '--cert',
+    required=True,
+    help='Path to the certificate file'
+)
+parser.add_argument(
+    '--key',
+    required=True,
+    help='Path to the private key file'
+)
+args = parser.parse_args()
+
+# Get credentials from environment variables
+username = os.environ.get('EPSON_CERT_UPLOAD_USERNAME')
+password = os.environ.get('EPSON_CERT_UPLOAD_PASSWORD')
+
+if not username:
+    print('Error: EPSON_CERT_UPLOAD_USERNAME environment variable not set', file=sys.stderr)
+    sys.exit(1)
+
+if not password:
+    print('Error: EPSON_CERT_UPLOAD_PASSWORD environment variable not set', file=sys.stderr)
+    sys.exit(1)
+
+# Ensure URL ends with /
+url = args.url if args.url.endswith('/') else args.url + '/'
 
 ########################################################################
 # step 1, authenticate
 jar = requests.cookies.RequestsCookieJar()
-set_url = URL + 'PRESENTATION/ADVANCED/PASSWORD/SET'
+set_url = url + 'PRESENTATION/ADVANCED/PASSWORD/SET'
 r = requests.post(
     set_url,
     cookies=jar,
     data={
-        'INPUTT_USERNAME': USERNAME,
+        'INPUTT_USERNAME': username,
         'access': 'https',
-        'INPUTT_PASSWORD': PASSWORD,
+        'INPUTT_PASSWORD': password,
         'INPUTT_ACCSESSMETHOD': 0,
         'INPUTT_DUMMY': '',
     },
@@ -28,7 +64,7 @@ jar = r.cookies
 
 ########################################################################
 # step 2, get the cert update form iframe and its token
-form_url = URL + 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT'
+form_url = url + 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT'
 r = requests.get(form_url, cookies=jar)
 tree = html5lib.parse(r.text, namespaceHTMLElements=False)
 data = dict([(f.attrib['name'], f.attrib['value']) for f in tree.findall('.//input')])
@@ -41,12 +77,12 @@ del data['cert1']
 del data['cert2']
 del data['key']
 
-upload_url = URL + 'PRESENTATIONEX/CERT/IMPORT_CHAIN'
+upload_url = url + 'PRESENTATIONEX/CERT/IMPORT_CHAIN'
 
 ########################################################################
 # Epson doesn't seem to like bundled certificates,
 # so split it into its componens
-f = open(CERTFILE, 'r')
+f = open(args.cert, 'r')
 full = f.readlines()
 f.close()
 certno = 0
@@ -60,7 +96,7 @@ for line in full:
         certno = certno + 1
 
 files = {
-    'key': open(KEYFILE, 'rb'),
+    'key': open(args.key, 'rb'),
 }
 
 for certno in certs:
