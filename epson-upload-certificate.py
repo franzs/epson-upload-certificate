@@ -14,6 +14,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='Upload SSL/TLS certificate to Epson printer'
     )
+
     parser.add_argument(
         '--url',
         required=True,
@@ -29,6 +30,13 @@ def main():
         required=True,
         help='Path to the private key file'
     )
+    parser.add_argument(
+        '--timeout',
+        type=float,
+        default=30,
+        help='Request timeout in seconds (default: 30)'
+    )
+
     args = parser.parse_args()
 
     # Get credentials from environment variables
@@ -66,6 +74,7 @@ def main():
                 'INPUTT_ACCSESSMETHOD': 0,
                 'INPUTT_DUMMY': '',
             },
+            timeout=args.timeout,
         )
     except requests.RequestException as e:
         print(f'Error: Network request for {set_url} failed: {e}', file=sys.stderr)
@@ -81,7 +90,7 @@ def main():
     # step 2, get the cert update form iframe and its token
     form_url = urllib.parse.urljoin(args.url, 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT')
     try:
-        r = requests.get(form_url, cookies=jar)
+        r = requests.get(form_url, cookies=jar, timeout=args.timeout)
     except requests.RequestException as e:
         print(f'Error: Network request for {form_url} failed: {e}', file=sys.stderr)
         sys.exit(1)
@@ -149,7 +158,7 @@ def main():
     ########################################################################
     # step 4, submit the new cert
     try:
-        r = requests.post(upload_url, cookies=jar, files=files, data=data)
+        r = requests.post(upload_url, cookies=jar, files=files, data=data, timeout=args.timeout)
     except requests.RequestException as e:
         print(f'Error: Network request for {upload_url} failed: {e}', file=sys.stderr)
         sys.exit(1)
