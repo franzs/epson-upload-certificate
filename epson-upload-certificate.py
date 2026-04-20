@@ -80,7 +80,10 @@ def main():
     form_url = url + 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT'
     r = requests.get(form_url, cookies=jar)
     tree = html5lib.parse(r.text, namespaceHTMLElements=False)
-    data = dict([(f.attrib['name'], f.attrib['value']) for f in tree.findall('.//input')])
+    data = {}
+    for f in tree.findall('.//input'):
+        if 'name' in f.attrib and 'value' in f.attrib:
+            data[f.attrib['name']] = f.attrib['value']
 
     if 'INPUTT_SETUPTOKEN' not in data:
         print('Error: Setup token not found in form', file=sys.stderr)
