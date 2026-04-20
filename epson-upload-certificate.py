@@ -104,17 +104,19 @@ def main():
         full = f.readlines()
 
     certno = 0
-    certs = dict()
+    certs = {}
+    current_cert = []
 
     for line in full:
-        if not line.strip():
-            continue
-        certs[certno] = certs.get(certno, '') + line
-        if 'END CERTIFICATE' in line:
-            certno = certno + 1
+        if line.strip():
+            current_cert.append(line)
+            if 'END CERTIFICATE' in line:
+                certs[certno] = ''.join(current_cert)
+                current_cert = []
+                certno += 1
 
-    if certno >= 3:
-        print(f'Error: Too many certificates found ({certno + 1}), maximum is 3', file=sys.stderr)
+    if certno > 3:
+        print(f'Error: Too many certificates found ({certno}), maximum is 3', file=sys.stderr)
         sys.exit(1)
 
     with open(args.key, 'rb') as key_file:
