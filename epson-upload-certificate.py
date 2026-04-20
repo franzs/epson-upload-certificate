@@ -128,6 +128,10 @@ def main():
                 current_cert = []
                 certno += 1
 
+    if certno == 0:
+        print('Error: No certificates found in file', file=sys.stderr)
+        sys.exit(1)
+
     if certno > 3:
         print(f'Error: Too many certificates found ({certno}), maximum is 3', file=sys.stderr)
         sys.exit(1)
