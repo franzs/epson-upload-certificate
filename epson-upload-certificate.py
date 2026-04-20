@@ -6,6 +6,7 @@ import os
 import sys
 import requests
 import html5lib
+import urllib.parse
 
 
 def main():
@@ -50,13 +51,10 @@ def main():
         print(f'Error: Key file not found: {args.key}', file=sys.stderr)
         sys.exit(1)
 
-    # Ensure URL ends with /
-    url = args.url if args.url.endswith('/') else args.url + '/'
-
     ########################################################################
     # step 1, authenticate
     jar = requests.cookies.RequestsCookieJar()
-    set_url = url + 'PRESENTATION/ADVANCED/PASSWORD/SET'
+    set_url = urllib.parse.urljoin(args.url, 'PRESENTATION/ADVANCED/PASSWORD/SET')
     r = requests.post(
         set_url,
         cookies=jar,
@@ -77,7 +75,7 @@ def main():
 
     ########################################################################
     # step 2, get the cert update form iframe and its token
-    form_url = url + 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT'
+    form_url = urllib.parse.urljoin(args.url, 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT')
     r = requests.get(form_url, cookies=jar)
     tree = html5lib.parse(r.text, namespaceHTMLElements=False)
     data = {}
@@ -97,7 +95,7 @@ def main():
     del data['cert2']
     del data['key']
 
-    upload_url = url + 'PRESENTATIONEX/CERT/IMPORT_CHAIN'
+    upload_url = urllib.parse.urljoin(args.url, 'PRESENTATIONEX/CERT/IMPORT_CHAIN')
 
     ########################################################################
     # Epson doesn't seem to like bundled certificates,
