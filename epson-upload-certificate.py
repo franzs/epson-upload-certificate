@@ -83,10 +83,10 @@ def main():
 
     ########################################################################
     # Epson doesn't seem to like bundled certificates,
-    # so split it into its componens
-    f = open(args.cert, 'r')
-    full = f.readlines()
-    f.close()
+    # so split it into its components
+    with open(args.cert, 'r') as f:
+        full = f.readlines()
+
     certno = 0
     certs = dict()
 
@@ -97,8 +97,11 @@ def main():
         if 'END CERTIFICATE' in line:
             certno = certno + 1
 
+    with open(args.key, 'rb') as key_file:
+        key_content = key_file.read()
+
     files = {
-        'key': open(args.key, 'rb'),
+        'key': io.BytesIO(key_content),
     }
 
     for certno in certs:
