@@ -55,17 +55,21 @@ def main():
     # step 1, authenticate
     jar = requests.cookies.RequestsCookieJar()
     set_url = urllib.parse.urljoin(args.url, 'PRESENTATION/ADVANCED/PASSWORD/SET')
-    r = requests.post(
-        set_url,
-        cookies=jar,
-        data={
-            'INPUTT_USERNAME': username,
-            'access': 'https',
-            'INPUTT_PASSWORD': password,
-            'INPUTT_ACCSESSMETHOD': 0,
-            'INPUTT_DUMMY': '',
-        },
-    )
+    try:
+        r = requests.post(
+            set_url,
+            cookies=jar,
+            data={
+                'INPUTT_USERNAME': username,
+                'access': 'https',
+                'INPUTT_PASSWORD': password,
+                'INPUTT_ACCSESSMETHOD': 0,
+                'INPUTT_DUMMY': '',
+            },
+        )
+    except requests.RequestException as e:
+        print(f'Error: Network request for {set_url} failed: {e}', file=sys.stderr)
+        sys.exit(1)
 
     if r.status_code != 200:
         print(f'Error: Authentication failed with status code {r.status_code}', file=sys.stderr)
@@ -76,7 +80,11 @@ def main():
     ########################################################################
     # step 2, get the cert update form iframe and its token
     form_url = urllib.parse.urljoin(args.url, 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT')
-    r = requests.get(form_url, cookies=jar)
+    try:
+        r = requests.get(form_url, cookies=jar)
+    except requests.RequestException as e:
+        print(f'Error: Network request for {form_url} failed: {e}', file=sys.stderr)
+        sys.exit(1)
 
     if r.status_code != 200:
         print(f'Error: Failed to fetch form (status {r.status_code})', file=sys.stderr)
@@ -136,7 +144,11 @@ def main():
 
     ########################################################################
     # step 4, submit the new cert
-    r = requests.post(upload_url, cookies=jar, files=files, data=data)
+    try:
+        r = requests.post(upload_url, cookies=jar, files=files, data=data)
+    except requests.RequestException as e:
+        print(f'Error: Network request for {upload_url} failed: {e}', file=sys.stderr)
+        sys.exit(1)
 
     if r.status_code != 200:
         print(f'Error: Failed to submit the certificate (status {r.status_code})', file=sys.stderr)
