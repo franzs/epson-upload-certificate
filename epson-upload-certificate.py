@@ -77,6 +77,11 @@ def main():
     # step 2, get the cert update form iframe and its token
     form_url = urllib.parse.urljoin(args.url, 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT')
     r = requests.get(form_url, cookies=jar)
+
+    if r.status_code != 200:
+        print(f'Error: Failed to fetch form (status {r.status_code})', file=sys.stderr)
+        sys.exit(1)
+
     tree = html5lib.parse(r.text, namespaceHTMLElements=False)
     data = {}
     for f in tree.findall('.//input'):
@@ -132,6 +137,10 @@ def main():
     ########################################################################
     # step 4, submit the new cert
     r = requests.post(upload_url, cookies=jar, files=files, data=data)
+
+    if r.status_code != 200:
+        print(f'Error: Failed to submit the certificate (status {r.status_code})', file=sys.stderr)
+        sys.exit(1)
 
     ########################################################################
     # step 5, verify the printer accepted the cert and is shutting down
