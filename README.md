@@ -121,6 +121,10 @@ The following environment variables must be set:
 - Verify the certificate file is in PEM format
 - Ensure the file contains `BEGIN CERTIFICATE` and `END CERTIFICATE` markers
 
+### Certificate verify failed: self-signed certificate
+
+Initially Epson devices have a self-signed certificate. Switching to a CA-signed certificate with this script is not covered, yet. Please import a CA-signed certificate manually and set `Server Certificate` to `CA-signed certificate` in the web interface.
+
 ## Tested Devices
 
 This script has been tested with the following Epson devices:
