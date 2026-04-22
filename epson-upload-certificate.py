@@ -59,14 +59,14 @@ def main():
         print(f'Error: Key file not found: {args.key}', file=sys.stderr)
         sys.exit(1)
 
+    s = requests.Session()
+
     ########################################################################
     # step 1, authenticate
-    jar = requests.cookies.RequestsCookieJar()
     set_url = urllib.parse.urljoin(args.url, 'PRESENTATION/ADVANCED/PASSWORD/SET')
     try:
-        r = requests.post(
+        r = s.post(
             set_url,
-            cookies=jar,
             data={
                 'INPUTT_USERNAME': username,
                 'access': 'https',
@@ -84,13 +84,11 @@ def main():
         print(f'Error: Authentication failed with status code {r.status_code}', file=sys.stderr)
         sys.exit(1)
 
-    jar = r.cookies
-
     ########################################################################
     # step 2, get the cert update form iframe and its token
     form_url = urllib.parse.urljoin(args.url, 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT')
     try:
-        r = requests.get(form_url, cookies=jar, timeout=args.timeout)
+        r = s.get(form_url, timeout=args.timeout)
     except requests.RequestException as e:
         print(f'Error: Network request for {form_url} failed: {e}', file=sys.stderr)
         sys.exit(1)
@@ -158,7 +156,7 @@ def main():
     ########################################################################
     # step 4, submit the new cert
     try:
-        r = requests.post(upload_url, cookies=jar, files=files, data=data, timeout=args.timeout)
+        r = s.post(upload_url, files=files, data=data, timeout=args.timeout)
     except requests.RequestException as e:
         print(f'Error: Network request for {upload_url} failed: {e}', file=sys.stderr)
         sys.exit(1)
