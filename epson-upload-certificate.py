@@ -6,7 +6,8 @@ import os
 import sys
 import requests
 import html5lib
-import urllib.parse
+
+from urllib.parse import urljoin
 
 
 def main():
@@ -63,7 +64,7 @@ def main():
 
     ########################################################################
     # step 1, authenticate
-    set_url = urllib.parse.urljoin(args.url, 'PRESENTATION/ADVANCED/PASSWORD/SET')
+    set_url = urljoin(args.url, 'PRESENTATION/ADVANCED/PASSWORD/SET')
     try:
         r = s.post(
             set_url,
@@ -86,7 +87,7 @@ def main():
 
     ########################################################################
     # step 2, get the cert update form iframe and its token
-    form_url = urllib.parse.urljoin(args.url, 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT')
+    form_url = urljoin(args.url, 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT')
     try:
         r = s.get(form_url, timeout=args.timeout)
     except requests.RequestException as e:
@@ -115,7 +116,7 @@ def main():
     data.pop('cert2', None)
     data.pop('key', None)
 
-    upload_url = urllib.parse.urljoin(args.url, 'PRESENTATIONEX/CERT/IMPORT_CHAIN')
+    upload_url = urljoin(args.url, 'PRESENTATIONEX/CERT/IMPORT_CHAIN')
 
     ########################################################################
     # Epson doesn't seem to like bundled certificates,
