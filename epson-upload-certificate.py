@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 
 import argparse
+import html5lib
 import io
 import os
-import sys
 import requests
-import html5lib
+import sys
+import time
+import urllib3
 
 from urllib.parse import urljoin
 
 
 URL_PATH_AUTHENTICATE = 'PRESENTATION/ADVANCED/PASSWORD/SET'
+URL_PATH_CA_CERT_STATUS = 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/TOP'
 URL_PATH_CA_IMPORT = 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT'
+URL_PATH_SET_CA_TYPE = 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/SET'
 URL_PATH_UPLOAD_CERT = 'PRESENTATIONEX/CERT/IMPORT_CHAIN'
 
 
@@ -52,6 +56,23 @@ def get_data_from_form(s, url, timeout, url_path):
 
     if 'INPUTT_SETUPTOKEN' not in data:
         raise EpsonError(f'Setup token not found in form at {form_url}')
+
+    if url_path == URL_PATH_CA_CERT_STATUS:
+        cert_type = None
+
+        for form in tree.iter('form'):
+            if form.get('id') == 'input_form':
+                # Find selected option within this form
+                for option in form.iter('option'):
+                    if option.get('selected') is not None:
+                        cert_type = option.get('value')
+                        break
+                break
+
+        if cert_type:
+            data['cert_type'] = cert_type
+        else:
+            raise EpsonError(f'No cert type found at {form_url}')
 
     return data
 
@@ -102,8 +123,46 @@ def upload_cert(s, url, timeout, data, cert, key):
     r = s.post(upload_url, files=files, data=data, timeout=timeout)
     r.raise_for_status()
 
+    if 'Shutting down' not in r.text and 'Setup complete' not in r.text:
+        raise EpsonError(f'Missing success message in response at {upload_url}')
+
+
+def wait_for_reauthentication(s, url, timeout, username, password, total_wait_time=120, poll_interval=5):
+    start_time = time.monotonic()
+
+    while time.monotonic() - start_time < total_wait_time:
+        try:
+            # Clear any old session cookies that might be invalid after the restart
+            s.cookies.clear()
+
+            # Attempt to authenticate. This is our "health check".
+            authenticate(s, url, timeout, username, password)
+
+            # If authentication succeeds, the service is up.
+            return
+        except requests.exceptions.RequestException:
+            # This is expected while the service is restarting.
+            pass
+
+        time.sleep(poll_interval)
+
+    # If the loop completes without returning, we've timed out.
+    raise TimeoutError(f"Service did not become available within {total_wait_time} seconds.")
+
+
+def set_ca_cert_type(s, url, timeout, data):
+    post_data = {
+        'INPUTT_SETUPTOKEN': data['INPUTT_SETUPTOKEN'],
+        'SEL_SSLTLSUSECERT': 'CA-SIGNED_CERT'
+    }
+
+    set_url = urljoin(url, URL_PATH_SET_CA_TYPE)
+
+    r = s.post(set_url, data=post_data, timeout=timeout)
+    r.raise_for_status()
+
     if 'Shutting down' not in r.text:
-        raise EpsonError(f'Missing "Shutting down" in response at {upload_url}')
+        raise EpsonError(f'Missing success message in response at {set_url}')
 
 
 def validate_file(path):
@@ -161,7 +220,9 @@ def main():
         print('Error: EPSON_CERT_UPLOAD_PASSWORD environment variable not set', file=sys.stderr)
         sys.exit(1)
 
+    urllib3.disable_warnings()
     s = requests.Session()
+    s.verify = False
 
     ########################################################################
     # step 1, authenticate
@@ -186,6 +247,29 @@ def main():
     except (EpsonError, requests.RequestException, ValueError) as e:
         print(f'Uploading certificate failed: {e}', file=sys.stderr)
         sys.exit(1)
+
+    ########################################################################
+    # wait for the service to come back online by polling and reauthenticate
+    try:
+        wait_for_reauthentication(s, args.url, args.timeout, username, password)
+    except TimeoutError as e:
+        print(f'Waiting for reauthentication failed: {e}', file=sys.stderr)
+        sys.exit(1)
+
+    ########################################################################
+    # check if we need to switch cert type
+    try:
+        data = get_data_from_form(s, args.url, args.timeout, URL_PATH_CA_CERT_STATUS)
+    except (requests.RequestException, EpsonError) as e:
+        print(f'Getting data from form failed: {e}', file=sys.stderr)
+        sys.exit(1)
+
+    if data['cert_type'] == 'SELF-SIGNED_CERT':
+        try:
+            set_ca_cert_type(s, args.url, args.timeout, data)
+        except (EpsonError, requests.RequestException) as e:
+            print(f'Setting CA certificate type failed: {e}', file=sys.stderr)
+            sys.exit(1)
 
     print('Epson certificate successfully uploaded to printer.')
 
