@@ -10,6 +10,11 @@ import html5lib
 from urllib.parse import urljoin
 
 
+URL_PATH_AUTHENTICATE = 'PRESENTATION/ADVANCED/PASSWORD/SET'
+URL_PATH_CA_IMPORT = 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT'
+URL_PATH_UPLOAD_CERT = 'PRESENTATIONEX/CERT/IMPORT_CHAIN'
+
+
 class EpsonError(Exception):
     """Raised when printer returns unexpected response."""
 
@@ -17,7 +22,7 @@ class EpsonError(Exception):
 
 
 def authenticate(s, url, timeout, username, password):
-    set_url = urljoin(url, 'PRESENTATION/ADVANCED/PASSWORD/SET')
+    set_url = urljoin(url, URL_PATH_AUTHENTICATE)
 
     r = s.post(
         set_url,
@@ -92,7 +97,7 @@ def upload_cert(s, url, timeout, data, cert, key):
     for certno in certs:
         files[f'cert{certno}'] = io.BytesIO(certs[certno].encode('utf-8'))
 
-    upload_url = urljoin(url, 'PRESENTATIONEX/CERT/IMPORT_CHAIN')
+    upload_url = urljoin(url, URL_PATH_UPLOAD_CERT)
 
     r = s.post(upload_url, files=files, data=data, timeout=timeout)
     r.raise_for_status()
@@ -169,7 +174,7 @@ def main():
     ########################################################################
     # step 2, get the cert update form iframe and its token
     try:
-        data = get_data_from_form(s, args.url, args.timeout, 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT')
+        data = get_data_from_form(s, args.url, args.timeout, URL_PATH_CA_IMPORT)
     except (requests.RequestException, EpsonError) as e:
         print(f'Getting data from form failed: {e}', file=sys.stderr)
         sys.exit(1)
