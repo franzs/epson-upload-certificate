@@ -10,40 +10,34 @@ import html5lib
 from urllib.parse import urljoin
 
 
+class EpsonError(Exception):
+    """Raised when printer returns unexpected response."""
+
+    pass
+
+
 def authenticate(s, url, timeout, username, password):
     set_url = urljoin(url, 'PRESENTATION/ADVANCED/PASSWORD/SET')
-    try:
-        r = s.post(
-            set_url,
-            data={
-                'INPUTT_USERNAME': username,
-                'access': 'https',
-                'INPUTT_PASSWORD': password,
-                'INPUTT_ACCSESSMETHOD': 0,
-                'INPUTT_DUMMY': '',
-            },
-            timeout=timeout,
-        )
-    except requests.RequestException as e:
-        print(f'Error: Network request for {set_url} failed: {e}', file=sys.stderr)
-        sys.exit(1)
 
-    if r.status_code != 200:
-        print(f'Error: Authentication failed with status code {r.status_code}', file=sys.stderr)
-        sys.exit(1)
+    r = s.post(
+        set_url,
+        data={
+            'INPUTT_USERNAME': username,
+            'access': 'https',
+            'INPUTT_PASSWORD': password,
+            'INPUTT_ACCSESSMETHOD': 0,
+            'INPUTT_DUMMY': '',
+        },
+        timeout=timeout,
+    )
+    r.raise_for_status()
 
 
 def get_data_from_form(s, url, timeout, url_path):
     form_url = urljoin(url, url_path)
-    try:
-        r = s.get(form_url, timeout=timeout)
-    except requests.RequestException as e:
-        print(f'Error: Network request for {form_url} failed: {e}', file=sys.stderr)
-        sys.exit(1)
 
-    if r.status_code != 200:
-        print(f'Error: Failed to fetch form (status {r.status_code})', file=sys.stderr)
-        sys.exit(1)
+    r = s.get(form_url, timeout=timeout)
+    r.raise_for_status()
 
     tree = html5lib.parse(r.text, namespaceHTMLElements=False)
     data = {}
@@ -52,8 +46,7 @@ def get_data_from_form(s, url, timeout, url_path):
             data[f.attrib['name']] = f.attrib['value']
 
     if 'INPUTT_SETUPTOKEN' not in data:
-        print('Error: Setup token not found in form', file=sys.stderr)
-        sys.exit(1)
+        raise EpsonError(f'Setup token not found in form at {form_url}')
 
     return data
 
@@ -64,8 +57,6 @@ def upload_cert(s, url, timeout, data, cert, key):
     data.pop('cert1', None)
     data.pop('cert2', None)
     data.pop('key', None)
-
-    upload_url = urljoin(url, 'PRESENTATIONEX/CERT/IMPORT_CHAIN')
 
     ########################################################################
     # Epson doesn't seem to like bundled certificates,
@@ -86,12 +77,10 @@ def upload_cert(s, url, timeout, data, cert, key):
                 certno += 1
 
     if certno == 0:
-        print('Error: No certificates found in file', file=sys.stderr)
-        sys.exit(1)
+        raise ValueError('No certificates found in file')
 
     if certno > 3:
-        print(f'Error: Too many certificates found ({certno}), maximum is 3', file=sys.stderr)
-        sys.exit(1)
+        raise ValueError(f'Too many certificates found ({certno}), maximum is 3')
 
     with open(key, 'rb') as key_file:
         key_content = key_file.read()
@@ -103,20 +92,13 @@ def upload_cert(s, url, timeout, data, cert, key):
     for certno in certs:
         files[f'cert{certno}'] = io.BytesIO(certs[certno].encode('utf-8'))
 
-    try:
-        r = s.post(upload_url, files=files, data=data, timeout=timeout)
-    except requests.RequestException as e:
-        print(f'Error: Network request for {upload_url} failed: {e}', file=sys.stderr)
-        sys.exit(1)
+    upload_url = urljoin(url, 'PRESENTATIONEX/CERT/IMPORT_CHAIN')
 
-    if r.status_code != 200:
-        print(f'Error: Failed to submit the certificate (status {r.status_code})', file=sys.stderr)
-        sys.exit(1)
+    r = s.post(upload_url, files=files, data=data, timeout=timeout)
+    r.raise_for_status()
 
     if 'Shutting down' not in r.text:
-        print('Error: Unexpected response from printer:', file=sys.stderr)
-        print(r.text, file=sys.stderr)
-        sys.exit(1)
+        raise EpsonError(f'Missing "Shutting down" in response at {upload_url}')
 
 
 def main():
@@ -173,15 +155,27 @@ def main():
 
     ########################################################################
     # step 1, authenticate
-    authenticate(s, args.url, args.timeout, username, password)
+    try:
+        authenticate(s, args.url, args.timeout, username, password)
+    except requests.RequestException as e:
+        print(f'Authentication attempt failed: {e}', file=sys.stderr)
+        sys.exit(1)
 
     ########################################################################
     # step 2, get the cert update form iframe and its token
-    data = get_data_from_form(s, args.url, args.timeout, 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT')
+    try:
+        data = get_data_from_form(s, args.url, args.timeout, 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT')
+    except (requests.RequestException, EpsonError) as e:
+        print(f'Getting data from form failed: {e}', file=sys.stderr)
+        sys.exit(1)
 
     ########################################################################
     # step 3, upload key and certs
-    upload_cert(s, args.url, args.timeout, data, args.cert, args.key)
+    try:
+        upload_cert(s, args.url, args.timeout, data, args.cert, args.key)
+    except (EpsonError, requests.RequestException, ValueError) as e:
+        print(f'Uploading certificate failed: {e}', file=sys.stderr)
+        sys.exit(1)
 
     print('Epson certificate successfully uploaded to printer.')
 
