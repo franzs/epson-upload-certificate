@@ -101,6 +101,17 @@ def upload_cert(s, url, timeout, data, cert, key):
         raise EpsonError(f'Missing "Shutting down" in response at {upload_url}')
 
 
+def validate_file(path):
+    """Validate that file exists and is readable."""
+    if not os.path.isfile(path):
+        raise argparse.ArgumentTypeError(f'File not found: {path}')
+
+    if not os.access(path, os.R_OK):
+        raise argparse.ArgumentTypeError(f'File not readable: {path}')
+
+    return path
+
+
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(
@@ -115,11 +126,13 @@ def main():
     parser.add_argument(
         '--cert',
         required=True,
+        type=validate_file,
         help='Path to the certificate file'
     )
     parser.add_argument(
         '--key',
         required=True,
+        type=validate_file,
         help='Path to the private key file'
     )
     parser.add_argument(
@@ -141,14 +154,6 @@ def main():
 
     if not password:
         print('Error: EPSON_CERT_UPLOAD_PASSWORD environment variable not set', file=sys.stderr)
-        sys.exit(1)
-
-    if not os.path.isfile(args.cert):
-        print(f'Error: Certificate file not found: {args.cert}', file=sys.stderr)
-        sys.exit(1)
-
-    if not os.path.isfile(args.key):
-        print(f'Error: Key file not found: {args.key}', file=sys.stderr)
         sys.exit(1)
 
     s = requests.Session()
