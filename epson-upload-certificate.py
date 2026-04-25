@@ -101,11 +101,12 @@ def split_cert_chain(cert_path: str) -> list[str]:
 
 
 def upload_cert(s: requests.Session, url: str, timeout: float, data: dict[str, str], cert: str, key: str) -> None:
-    data['format'] = 'pem_der'
-    data.pop('cert0', None)
-    data.pop('cert1', None)
-    data.pop('cert2', None)
-    data.pop('key', None)
+    post_data = {**data, 'format': 'pem_der'}
+
+    post_data.pop('cert0', None)
+    post_data.pop('cert1', None)
+    post_data.pop('cert2', None)
+    post_data.pop('key', None)
 
     certs = split_cert_chain(cert)
 
@@ -121,7 +122,7 @@ def upload_cert(s: requests.Session, url: str, timeout: float, data: dict[str, s
 
     upload_url = urljoin(url, URL_PATH_UPLOAD_CERT)
 
-    r = s.post(upload_url, files=files, data=data, timeout=timeout)
+    r = s.post(upload_url, files=files, data=post_data, timeout=timeout)
     r.raise_for_status()
 
     if 'Shutting down' not in r.text and 'Setup complete' not in r.text:
