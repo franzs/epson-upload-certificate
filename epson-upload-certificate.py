@@ -237,7 +237,7 @@ def main() -> None:
         print('Error: EPSON_CERT_UPLOAD_PASSWORD environment variable not set', file=sys.stderr)
         sys.exit(1)
 
-    urllib3.disable_warnings()
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     s = requests.Session()
     s.verify = False
 
