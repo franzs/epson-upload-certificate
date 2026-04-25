@@ -77,19 +77,19 @@ def get_data_from_form(s: requests.Session, url: str, timeout: float, url_path: 
     return data
 
 
-def split_cert_chain(cert_path: str) -> dict[int, str]:
+def split_cert_chain(cert_path: str) -> list[str]:
     """Split a PEM file into its individual certificate components."""
     with open(cert_path, 'r') as f:
         lines = f.readlines()
 
-    certs: dict[int, str] = {}
+    certs: list[str] = []
     current: list[str] = []
 
     for line in lines:
         if line.strip():
             current.append(line)
             if 'END CERTIFICATE' in line:
-                certs[len(certs)] = ''.join(current)
+                certs.append(''.join(current))
                 current = []
 
     if not certs:
@@ -116,8 +116,8 @@ def upload_cert(s: requests.Session, url: str, timeout: float, data: dict[str, s
         'key': io.BytesIO(key_content),
     }
 
-    for certno in certs:
-        files[f'cert{certno}'] = io.BytesIO(certs[certno].encode('utf-8'))
+    for certno, cert_pem in enumerate(certs):
+        files[f'cert{certno}'] = io.BytesIO(cert_pem.encode('utf-8'))
 
     upload_url = urljoin(url, URL_PATH_UPLOAD_CERT)
 
