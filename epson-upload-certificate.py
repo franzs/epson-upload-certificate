@@ -9,6 +9,7 @@ import sys
 import time
 import urllib3
 
+from typing import Any
 from urllib.parse import urljoin
 
 
@@ -42,7 +43,8 @@ def authenticate(s: requests.Session, url: str, timeout: float, username: str, p
     r.raise_for_status()
 
 
-def get_data_from_form(s: requests.Session, url: str, timeout: float, url_path: str) -> dict[str, str]:
+def _fetch_and_parse_form(s: requests.Session, url: str, timeout: float, url_path: str) -> tuple[dict[str, str], Any]:
+    """Fetch a form page and return its hidden input data and parsed HTML tree."""
     form_url = urljoin(url, url_path)
 
     r = s.get(form_url, timeout=timeout)
@@ -57,22 +59,35 @@ def get_data_from_form(s: requests.Session, url: str, timeout: float, url_path: 
     if 'INPUTT_SETUPTOKEN' not in data:
         raise EpsonError(f'Setup token not found in form at {form_url}')
 
-    if url_path == URL_PATH_CA_CERT_STATUS:
-        cert_type = None
+    return data, tree
 
-        for form in tree.iter('form'):
-            if form.get('id') == 'input_form':
-                # Find selected option within this form
-                for option in form.iter('option'):
-                    if option.get('selected') is not None:
-                        cert_type = option.get('value')
-                        break
-                break
 
-        if cert_type:
-            data['cert_type'] = cert_type
-        else:
-            raise EpsonError(f'No cert type found at {form_url}')
+def get_form_data(s: requests.Session, url: str, timeout: float) -> dict[str, str]:
+    """Fetch a form page and return its hidden input fields."""
+    data, _ = _fetch_and_parse_form(s, url, timeout, URL_PATH_CA_IMPORT)
+
+    return data
+
+
+def get_form_data_and_ca_cert_type(s: requests.Session, url: str, timeout: float) -> dict[str, str]:
+    """Fetch the CA cert status page and return form data including the active cert type."""
+    data, tree = _fetch_and_parse_form(s, url, timeout, URL_PATH_CA_CERT_STATUS)
+
+    cert_type = None
+
+    for form in tree.iter('form'):
+        if form.get('id') == 'input_form':
+            # Find selected option within this form
+            for option in form.iter('option'):
+                if option.get('selected') is not None:
+                    cert_type = option.get('value')
+                    break
+            break
+
+    if cert_type:
+        data['cert_type'] = cert_type
+    else:
+        raise EpsonError('No cert type found.')
 
     return data
 
@@ -237,7 +252,7 @@ def main() -> None:
     ########################################################################
     # step 2, get the cert update form iframe and its token
     try:
-        data = get_data_from_form(s, args.url, args.timeout, URL_PATH_CA_IMPORT)
+        data = get_form_data(s, args.url, args.timeout)
     except (requests.RequestException, EpsonError) as e:
         print(f'Getting data from form failed: {e}', file=sys.stderr)
         sys.exit(1)
@@ -261,7 +276,7 @@ def main() -> None:
     ########################################################################
     # check if we need to switch cert type
     try:
-        data = get_data_from_form(s, args.url, args.timeout, URL_PATH_CA_CERT_STATUS)
+        data = get_form_data_and_ca_cert_type(s, args.url, args.timeout)
     except (requests.RequestException, EpsonError) as e:
         print(f'Getting data from form failed: {e}', file=sys.stderr)
         sys.exit(1)
