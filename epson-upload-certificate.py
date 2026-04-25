@@ -77,6 +77,29 @@ def get_data_from_form(s: requests.Session, url: str, timeout: float, url_path: 
     return data
 
 
+def split_cert_chain(cert_path: str) -> dict[int, str]:
+    """Split a PEM file into its individual certificate components."""
+    with open(cert_path, 'r') as f:
+        lines = f.readlines()
+
+    certs: dict[int, str] = {}
+    current: list[str] = []
+
+    for line in lines:
+        if line.strip():
+            current.append(line)
+            if 'END CERTIFICATE' in line:
+                certs[len(certs)] = ''.join(current)
+                current = []
+
+    if not certs:
+        raise ValueError('No certificates found in file')
+    if len(certs) > 3:
+        raise ValueError(f'Too many certificates ({len(certs)}), maximum is 3')
+
+    return certs
+
+
 def upload_cert(s: requests.Session, url: str, timeout: float, data: dict[str, str], cert: str, key: str) -> None:
     data['format'] = 'pem_der'
     data.pop('cert0', None)
@@ -84,29 +107,7 @@ def upload_cert(s: requests.Session, url: str, timeout: float, data: dict[str, s
     data.pop('cert2', None)
     data.pop('key', None)
 
-    ########################################################################
-    # Epson doesn't seem to like bundled certificates,
-    # so split it into its components
-    with open(cert, 'r') as f:
-        full = f.readlines()
-
-    certno = 0
-    certs = {}
-    current_cert = []
-
-    for line in full:
-        if line.strip():
-            current_cert.append(line)
-            if 'END CERTIFICATE' in line:
-                certs[certno] = ''.join(current_cert)
-                current_cert = []
-                certno += 1
-
-    if certno == 0:
-        raise ValueError('No certificates found in file')
-
-    if certno > 3:
-        raise ValueError(f'Too many certificates found ({certno}), maximum is 3')
+    certs = split_cert_chain(cert)
 
     with open(key, 'rb') as key_file:
         key_content = key_file.read()
