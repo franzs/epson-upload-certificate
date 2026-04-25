@@ -268,31 +268,27 @@ def main() -> None:
     s = requests.Session()
     s.verify = False
 
-    ########################################################################
-    # step 1, authenticate
+    # authenticate
     try:
         authenticate(s, args.url, args.timeout, username, password)
     except requests.RequestException as e:
         print(f'Authentication attempt failed: {e}', file=sys.stderr)
         sys.exit(1)
 
-    ########################################################################
-    # step 2, get the cert update form iframe and its token
+    # get the cert update form iframe and its token
     try:
         data = get_form_data(s, args.url, args.timeout)
     except (requests.RequestException, EpsonError) as e:
         print(f'Getting data from form failed: {e}', file=sys.stderr)
         sys.exit(1)
 
-    ########################################################################
-    # step 3, upload key and certs
+    # upload key and certs
     try:
         upload_cert(s, args.url, args.timeout, data, args.cert, args.key)
     except (EpsonError, requests.RequestException, ValueError) as e:
         print(f'Uploading certificate failed: {e}', file=sys.stderr)
         sys.exit(1)
 
-    ########################################################################
     # wait for the service to come back online by polling and reauthenticate
     try:
         wait_for_reauthentication(s, args.url, args.timeout, username, password)
@@ -300,7 +296,6 @@ def main() -> None:
         print(f'Waiting for reauthentication failed: {e}', file=sys.stderr)
         sys.exit(1)
 
-    ########################################################################
     # check if we need to switch cert type
     try:
         data = get_form_data_and_ca_cert_type(s, args.url, args.timeout)
