@@ -19,6 +19,9 @@ URL_PATH_CA_IMPORT = 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT'
 URL_PATH_SET_CA_TYPE = 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/SET'
 URL_PATH_UPLOAD_CERT = 'PRESENTATIONEX/CERT/IMPORT_CHAIN'
 
+REAUTH_TOTAL_WAIT_TIME = 120.0  # seconds
+REAUTH_POLL_INTERVAL = 5.0  # seconds
+
 
 class EpsonError(Exception):
     """Raised when printer returns unexpected response."""
@@ -144,7 +147,7 @@ def upload_cert(s: requests.Session, url: str, timeout: float, data: dict[str, s
         raise EpsonError(f'Missing success message in response at {upload_url}')
 
 
-def wait_for_reauthentication(s: requests.Session, url: str, timeout: float, username: str, password: str, total_wait_time: float = 120, poll_interval: float = 5) -> None:
+def wait_for_reauthentication(s: requests.Session, url: str, timeout: float, username: str, password: str, total_wait_time: float = REAUTH_TOTAL_WAIT_TIME, poll_interval: float = REAUTH_POLL_INTERVAL) -> None:
     start_time = time.monotonic()
 
     while time.monotonic() - start_time < total_wait_time:
