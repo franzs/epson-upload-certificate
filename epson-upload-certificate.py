@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
 import argparse
-import html5lib
 import io
 import os
-import requests
 import sys
 import time
-import urllib3
 
 from typing import Any
 from urllib.parse import urljoin
+
+import html5lib
+import requests
+import urllib3
 
 URL_PATH_AUTHENTICATE = 'PRESENTATION/ADVANCED/PASSWORD/SET'
 URL_PATH_CA_CERT_STATUS = 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/TOP'
