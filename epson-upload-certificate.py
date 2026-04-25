@@ -12,7 +12,6 @@ import urllib3
 from typing import Any
 from urllib.parse import urljoin
 
-
 URL_PATH_AUTHENTICATE = 'PRESENTATION/ADVANCED/PASSWORD/SET'
 URL_PATH_CA_CERT_STATUS = 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/TOP'
 URL_PATH_CA_IMPORT = 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT'
@@ -29,7 +28,9 @@ class EpsonError(Exception):
     pass
 
 
-def authenticate(s: requests.Session, url: str, timeout: float, username: str, password: str) -> None:
+def authenticate(
+    s: requests.Session, url: str, timeout: float, username: str, password: str
+) -> None:
     set_url = urljoin(url, URL_PATH_AUTHENTICATE)
 
     r = s.post(
@@ -46,7 +47,9 @@ def authenticate(s: requests.Session, url: str, timeout: float, username: str, p
     r.raise_for_status()
 
 
-def _fetch_and_parse_form(s: requests.Session, url: str, timeout: float, url_path: str) -> tuple[dict[str, str], Any]:
+def _fetch_and_parse_form(
+    s: requests.Session, url: str, timeout: float, url_path: str
+) -> tuple[dict[str, str], Any]:
     """Fetch a form page and return its hidden input data and parsed HTML tree."""
     form_url = urljoin(url, url_path)
 
@@ -72,7 +75,9 @@ def get_form_data(s: requests.Session, url: str, timeout: float) -> dict[str, st
     return data
 
 
-def get_form_data_and_ca_cert_type(s: requests.Session, url: str, timeout: float) -> dict[str, str]:
+def get_form_data_and_ca_cert_type(
+    s: requests.Session, url: str, timeout: float
+) -> dict[str, str]:
     """Fetch the CA cert status page and return form data including the active cert type."""
     data, tree = _fetch_and_parse_form(s, url, timeout, URL_PATH_CA_CERT_STATUS)
 
@@ -118,7 +123,14 @@ def split_cert_chain(cert_path: str) -> list[str]:
     return certs
 
 
-def upload_cert(s: requests.Session, url: str, timeout: float, data: dict[str, str], cert: str, key: str) -> None:
+def upload_cert(
+    s: requests.Session,
+    url: str,
+    timeout: float,
+    data: dict[str, str],
+    cert: str,
+    key: str,
+) -> None:
     post_data = {**data, 'format': 'pem_der'}
 
     post_data.pop('cert0', None)
@@ -147,7 +159,15 @@ def upload_cert(s: requests.Session, url: str, timeout: float, data: dict[str, s
         raise EpsonError(f'Missing success message in response at {upload_url}')
 
 
-def wait_for_reauthentication(s: requests.Session, url: str, timeout: float, username: str, password: str, total_wait_time: float = REAUTH_TOTAL_WAIT_TIME, poll_interval: float = REAUTH_POLL_INTERVAL) -> None:
+def wait_for_reauthentication(
+    s: requests.Session,
+    url: str,
+    timeout: float,
+    username: str,
+    password: str,
+    total_wait_time: float = REAUTH_TOTAL_WAIT_TIME,
+    poll_interval: float = REAUTH_POLL_INTERVAL,
+) -> None:
     start_time = time.monotonic()
 
     while time.monotonic() - start_time < total_wait_time:
@@ -167,13 +187,17 @@ def wait_for_reauthentication(s: requests.Session, url: str, timeout: float, use
         time.sleep(poll_interval)
 
     # If the loop completes without returning, we've timed out.
-    raise TimeoutError(f"Service did not become available within {total_wait_time} seconds.")
+    raise TimeoutError(
+        f"Service did not become available within {total_wait_time} seconds."
+    )
 
 
-def set_ca_cert_type(s: requests.Session, url: str, timeout: float, data: dict[str, str]) -> None:
+def set_ca_cert_type(
+    s: requests.Session, url: str, timeout: float, data: dict[str, str]
+) -> None:
     post_data = {
         'INPUTT_SETUPTOKEN': data['INPUTT_SETUPTOKEN'],
-        'SEL_SSLTLSUSECERT': 'CA-SIGNED_CERT'
+        'SEL_SSLTLSUSECERT': 'CA-SIGNED_CERT',
     }
 
     set_url = urljoin(url, URL_PATH_SET_CA_TYPE)
@@ -205,25 +229,19 @@ def main() -> None:
     parser.add_argument(
         '--url',
         required=True,
-        help='Base URL of the Epson printer (e.g., https://myepson.example.com/)'
+        help='Base URL of the Epson printer (e.g., https://myepson.example.com/)',
     )
     parser.add_argument(
-        '--cert',
-        required=True,
-        type=validate_file,
-        help='Path to the certificate file'
+        '--cert', required=True, type=validate_file, help='Path to the certificate file'
     )
     parser.add_argument(
-        '--key',
-        required=True,
-        type=validate_file,
-        help='Path to the private key file'
+        '--key', required=True, type=validate_file, help='Path to the private key file'
     )
     parser.add_argument(
         '--timeout',
         type=float,
         default=30,
-        help='Request timeout in seconds (default: 30)'
+        help='Request timeout in seconds (default: 30)',
     )
 
     args = parser.parse_args()
@@ -233,11 +251,17 @@ def main() -> None:
     password = os.environ.get('EPSON_CERT_UPLOAD_PASSWORD')
 
     if not username:
-        print('Error: EPSON_CERT_UPLOAD_USERNAME environment variable not set', file=sys.stderr)
+        print(
+            'Error: EPSON_CERT_UPLOAD_USERNAME environment variable not set',
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if not password:
-        print('Error: EPSON_CERT_UPLOAD_PASSWORD environment variable not set', file=sys.stderr)
+        print(
+            'Error: EPSON_CERT_UPLOAD_PASSWORD environment variable not set',
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
