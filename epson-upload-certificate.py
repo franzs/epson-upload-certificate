@@ -19,6 +19,9 @@ URL_PATH_CA_IMPORT = 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/CA_IMPORT'
 URL_PATH_SET_CA_TYPE = 'PRESENTATION/ADVANCED/NWS_CERT_SSLTLS/SET'
 URL_PATH_UPLOAD_CERT = 'PRESENTATIONEX/CERT/IMPORT_CHAIN'
 
+CERT_TYPE_CA = 'CA-SIGNED_CERT'
+CERT_TYPE_SELF_SIGNED = 'SELF-SIGNED_CERT'
+
 REAUTH_TOTAL_WAIT_TIME = 120.0  # seconds
 REAUTH_POLL_INTERVAL = 5.0  # seconds
 
@@ -198,7 +201,7 @@ def set_ca_cert_type(
 ) -> None:
     post_data = {
         'INPUTT_SETUPTOKEN': data['INPUTT_SETUPTOKEN'],
-        'SEL_SSLTLSUSECERT': 'CA-SIGNED_CERT',
+        'SEL_SSLTLSUSECERT': CERT_TYPE_CA,
     }
 
     set_url = urljoin(url, URL_PATH_SET_CA_TYPE)
@@ -276,6 +279,18 @@ def main() -> None:
         print(f'Authentication attempt failed: {e}', file=sys.stderr)
         sys.exit(1)
 
+    # get CA cert type
+    try:
+        data = get_form_data_and_ca_cert_type(s, args.url, args.timeout)
+    except (requests.RequestException, EpsonError) as e:
+        print(f'Getting data from form failed: {e}', file=sys.stderr)
+        sys.exit(1)
+
+    cert_type = data['cert_type']
+
+    if cert_type == CERT_TYPE_CA:
+        s.verify = True
+
     # get the cert update form iframe and its token
     try:
         data = get_form_data(s, args.url, args.timeout)
@@ -290,21 +305,23 @@ def main() -> None:
         print(f'Uploading certificate failed: {e}', file=sys.stderr)
         sys.exit(1)
 
-    # wait for the service to come back online by polling and reauthenticate
-    try:
-        wait_for_reauthentication(s, args.url, args.timeout, username, password)
-    except TimeoutError as e:
-        print(f'Waiting for reauthentication failed: {e}', file=sys.stderr)
-        sys.exit(1)
-
     # check if we need to switch cert type
-    try:
-        data = get_form_data_and_ca_cert_type(s, args.url, args.timeout)
-    except (requests.RequestException, EpsonError) as e:
-        print(f'Getting data from form failed: {e}', file=sys.stderr)
-        sys.exit(1)
+    if cert_type == CERT_TYPE_SELF_SIGNED:
+        # wait for the service to come back online by polling and reauthenticate
+        try:
+            wait_for_reauthentication(s, args.url, args.timeout, username, password)
+        except TimeoutError as e:
+            print(f'Waiting for reauthentication failed: {e}', file=sys.stderr)
+            sys.exit(1)
 
-    if data['cert_type'] == 'SELF-SIGNED_CERT':
+        # Fetch fresh form data after restart — previous token is stale
+        try:
+            data = get_form_data_and_ca_cert_type(s, args.url, args.timeout)
+        except (requests.RequestException, EpsonError) as e:
+            print(f'Getting data from form failed: {e}', file=sys.stderr)
+            sys.exit(1)
+
+        # set CA cert type
         try:
             set_ca_cert_type(s, args.url, args.timeout, data)
         except (EpsonError, requests.RequestException) as e:
