@@ -25,7 +25,7 @@ class EpsonError(Exception):
     pass
 
 
-def authenticate(s, url, timeout, username, password):
+def authenticate(s: requests.Session, url: str, timeout: float, username: str, password: str) -> None:
     set_url = urljoin(url, URL_PATH_AUTHENTICATE)
 
     r = s.post(
@@ -42,7 +42,7 @@ def authenticate(s, url, timeout, username, password):
     r.raise_for_status()
 
 
-def get_data_from_form(s, url, timeout, url_path):
+def get_data_from_form(s: requests.Session, url: str, timeout: float, url_path: str) -> dict[str, str]:
     form_url = urljoin(url, url_path)
 
     r = s.get(form_url, timeout=timeout)
@@ -77,7 +77,7 @@ def get_data_from_form(s, url, timeout, url_path):
     return data
 
 
-def upload_cert(s, url, timeout, data, cert, key):
+def upload_cert(s: requests.Session, url: str, timeout: float, data: dict[str, str], cert: str, key: str) -> None:
     data['format'] = 'pem_der'
     data.pop('cert0', None)
     data.pop('cert1', None)
@@ -127,7 +127,7 @@ def upload_cert(s, url, timeout, data, cert, key):
         raise EpsonError(f'Missing success message in response at {upload_url}')
 
 
-def wait_for_reauthentication(s, url, timeout, username, password, total_wait_time=120, poll_interval=5):
+def wait_for_reauthentication(s: requests.Session, url: str, timeout: float, username: str, password: str, total_wait_time: float = 120, poll_interval: float = 5) -> None:
     start_time = time.monotonic()
 
     while time.monotonic() - start_time < total_wait_time:
@@ -150,7 +150,7 @@ def wait_for_reauthentication(s, url, timeout, username, password, total_wait_ti
     raise TimeoutError(f"Service did not become available within {total_wait_time} seconds.")
 
 
-def set_ca_cert_type(s, url, timeout, data):
+def set_ca_cert_type(s: requests.Session, url: str, timeout: float, data: dict[str, str]) -> None:
     post_data = {
         'INPUTT_SETUPTOKEN': data['INPUTT_SETUPTOKEN'],
         'SEL_SSLTLSUSECERT': 'CA-SIGNED_CERT'
@@ -165,7 +165,7 @@ def set_ca_cert_type(s, url, timeout, data):
         raise EpsonError(f'Missing success message in response at {set_url}')
 
 
-def validate_file(path):
+def validate_file(path: str) -> str:
     """Validate that file exists and is readable."""
     if not os.path.isfile(path):
         raise argparse.ArgumentTypeError(f'File not found: {path}')
@@ -176,7 +176,7 @@ def validate_file(path):
     return path
 
 
-def main():
+def main() -> None:
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description='Upload SSL/TLS certificate to Epson printer'
