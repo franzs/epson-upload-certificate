@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+"""Epson Printer/Scanner TLS Certificate Upload Tool"""
+
 import argparse
 import os
 import sys
@@ -32,6 +34,7 @@ class EpsonError(Exception):
 def authenticate(
     s: requests.Session, url: str, timeout: float, username: str, password: str
 ) -> None:
+    """Authenticate to the Epson web ui to retrieve a session cookie."""
     set_url = urljoin(url, URL_PATH_AUTHENTICATE)
 
     r = s.post(
@@ -132,6 +135,7 @@ def upload_cert(
     cert: str,
     key: str,
 ) -> None:
+    """Upload certificates and key."""
     post_data = {**data, 'format': 'pem_der'}
 
     post_data.pop('cert0', None)
@@ -169,6 +173,7 @@ def wait_for_reauthentication(
     total_wait_time: float = REAUTH_TOTAL_WAIT_TIME,
     poll_interval: float = REAUTH_POLL_INTERVAL,
 ) -> None:
+    """Wait until authentication succeeds."""
     start_time = time.monotonic()
 
     while time.monotonic() - start_time < total_wait_time:
@@ -196,6 +201,7 @@ def wait_for_reauthentication(
 def set_ca_cert_type(
     s: requests.Session, url: str, timeout: float, data: dict[str, str]
 ) -> None:
+    """Set CA certificate type to CA-signed."""
     post_data = {
         'INPUTT_SETUPTOKEN': data['INPUTT_SETUPTOKEN'],
         'SEL_SSLTLSUSECERT': CERT_TYPE_CA,
@@ -222,6 +228,7 @@ def validate_file(path: str) -> str:
 
 
 def main() -> None:
+    """Main method run when executing the file from console."""
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description='Upload SSL/TLS certificate to Epson printer'
