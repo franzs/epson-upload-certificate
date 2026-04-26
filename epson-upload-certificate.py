@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import io
 import os
 import sys
 import time
@@ -104,7 +103,7 @@ def get_form_data_and_ca_cert_type(
 
 def split_cert_chain(cert_path: str) -> list[str]:
     """Split a PEM file into its individual certificate components."""
-    with open(cert_path, 'r') as f:
+    with open(cert_path, 'r', encoding="utf-8") as f:
         lines = f.readlines()
 
     certs: list[str] = []
@@ -142,15 +141,15 @@ def upload_cert(
 
     certs = split_cert_chain(cert)
 
-    with open(key, 'rb') as key_file:
+    with open(key, 'r', encoding="utf-8") as key_file:
         key_content = key_file.read()
 
     files = {
-        'key': io.BytesIO(key_content),
+        'key': key_content,
     }
 
     for certno, cert_pem in enumerate(certs):
-        files[f'cert{certno}'] = io.BytesIO(cert_pem.encode('utf-8'))
+        files[f'cert{certno}'] = cert_pem
 
     upload_url = urljoin(url, URL_PATH_UPLOAD_CERT)
 
