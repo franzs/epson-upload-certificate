@@ -59,7 +59,7 @@ pip install -r requirements.txt
 export EPSON_CERT_UPLOAD_USERNAME="admin"
 export EPSON_CERT_UPLOAD_PASSWORD="your_password"
 
-./epson-cert-upload.py \
+./epson_cert_upload.py \
   --url https://printer.example.com \
   --cert /path/to/certificate.pem \
   --key /path/to/private-key.pem
