@@ -29,8 +29,6 @@ REAUTH_POLL_INTERVAL = 5.0  # seconds
 class EpsonError(Exception):
     """Raised when printer returns unexpected response."""
 
-    pass
-
 
 def authenticate(
     s: requests.Session, url: str, timeout: float, username: str, password: str
