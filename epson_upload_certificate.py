@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
+"""Epson Printer/Scanner TLS Certificate Upload Tool"""
+
 import argparse
-import io
 import os
 import sys
 import time
@@ -29,12 +30,11 @@ REAUTH_POLL_INTERVAL = 5.0  # seconds
 class EpsonError(Exception):
     """Raised when printer returns unexpected response."""
 
-    pass
-
 
 def authenticate(
     s: requests.Session, url: str, timeout: float, username: str, password: str
 ) -> None:
+    """Authenticate to the Epson web ui to retrieve a session cookie."""
     set_url = urljoin(url, URL_PATH_AUTHENTICATE)
 
     r = s.post(
@@ -106,7 +106,7 @@ def get_form_data_and_ca_cert_type(
 
 def split_cert_chain(cert_path: str) -> list[str]:
     """Split a PEM file into its individual certificate components."""
-    with open(cert_path, 'r') as f:
+    with open(cert_path, 'r', encoding="utf-8") as f:
         lines = f.readlines()
 
     certs: list[str] = []
@@ -135,6 +135,7 @@ def upload_cert(
     cert: str,
     key: str,
 ) -> None:
+    """Upload certificates and key."""
     post_data = {**data, 'format': 'pem_der'}
 
     post_data.pop('cert0', None)
@@ -144,15 +145,15 @@ def upload_cert(
 
     certs = split_cert_chain(cert)
 
-    with open(key, 'rb') as key_file:
+    with open(key, 'r', encoding="utf-8") as key_file:
         key_content = key_file.read()
 
     files = {
-        'key': io.BytesIO(key_content),
+        'key': key_content,
     }
 
     for certno, cert_pem in enumerate(certs):
-        files[f'cert{certno}'] = io.BytesIO(cert_pem.encode('utf-8'))
+        files[f'cert{certno}'] = cert_pem
 
     upload_url = urljoin(url, URL_PATH_UPLOAD_CERT)
 
@@ -172,6 +173,7 @@ def wait_for_reauthentication(
     total_wait_time: float = REAUTH_TOTAL_WAIT_TIME,
     poll_interval: float = REAUTH_POLL_INTERVAL,
 ) -> None:
+    """Wait until authentication succeeds."""
     start_time = time.monotonic()
 
     while time.monotonic() - start_time < total_wait_time:
@@ -199,6 +201,7 @@ def wait_for_reauthentication(
 def set_ca_cert_type(
     s: requests.Session, url: str, timeout: float, data: dict[str, str]
 ) -> None:
+    """Set CA certificate type to CA-signed."""
     post_data = {
         'INPUTT_SETUPTOKEN': data['INPUTT_SETUPTOKEN'],
         'SEL_SSLTLSUSECERT': CERT_TYPE_CA,
@@ -225,6 +228,7 @@ def validate_file(path: str) -> str:
 
 
 def main() -> None:
+    """Main method run when executing the file from console."""
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description='Upload SSL/TLS certificate to Epson printer'
