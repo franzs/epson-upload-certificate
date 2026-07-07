@@ -26,6 +26,8 @@ CERT_TYPE_SELF_SIGNED = 'SELF-SIGNED_CERT'
 REAUTH_TOTAL_WAIT_TIME = 120.0  # seconds
 REAUTH_POLL_INTERVAL = 5.0  # seconds
 
+MAX_CHAIN_LENGTH = 4
+
 
 class EpsonError(Exception):
     """Raised when printer returns unexpected response."""
@@ -121,8 +123,10 @@ def split_cert_chain(cert_path: str) -> list[str]:
 
     if not certs:
         raise ValueError('No certificates found in file')
-    if len(certs) > 3:
-        raise ValueError(f'Too many certificates ({len(certs)}), maximum is 3')
+    if len(certs) > MAX_CHAIN_LENGTH:
+        raise ValueError(
+            f'Too many certificates ({len(certs)}), maximum is {MAX_CHAIN_LENGTH}'
+        )
 
     return certs
 
